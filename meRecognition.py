@@ -13,7 +13,7 @@ device = MER.get_default_device()
 print("Selected device:",device)
 
 # Loading pretrained weights
-w = '.\MERCnn.pth'
+w = './MERCnn.pth'
 model = MER.to_device(MER.MERCnnModel(),device)
 if str(device) == 'cpu':
     model.load_state_dict(torch.load(w,map_location=torch.device('cpu'))) # use for cpu
