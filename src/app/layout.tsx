@@ -1,11 +1,11 @@
 // app/layout.tsx
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-inter antialiased`}>
+      <body className={`${geistSans.variable} antialiased`}>
         <div className="relative min-h-screen w-full bg-white">
           <main className="flex-grow">{children}</main>
         </div>

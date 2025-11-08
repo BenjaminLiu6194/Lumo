@@ -4,13 +4,15 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CMUFuturisticBackground } from "@/components/ui/CMUFuturisticBackground";
+import { ConversationCamera } from "@/components/ConversationCamera";
+import { AudioResponsiveBall } from "@/components/AudioResponsiveBall";
 
-type AppState = "idle" | "listening" | "processing" | "suggesting";
+type AppState = "idle" | "camera" | "listening" | "processing" | "suggesting";
 
 const mockSuggestions = [
-  "I want an apple",
-  "Can we go outside?",
-  "I'm feeling happy",
+  { text: "I want an apple", tone: "Direct request" },
+  { text: "Where can I get apple?", tone: "Curious question" },
+  { text: "I love apple", tone: "Happy expression" },
 ];
 
 export default function HomePage() {
@@ -18,42 +20,77 @@ export default function HomePage() {
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
     null
   );
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [brightness, setBrightness] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  const [userMessage, setUserMessage] = useState("");
 
-  // Speech synthesis function
-  const speakText = (text: string) => {
+  // Speech synthesis function with completion callback
+  const speakText = (text: string, onComplete?: () => void) => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.8;
       utterance.volume = 0.8;
+
+      // Add event listener for when speech ends
+      utterance.onend = () => {
+        if (onComplete) {
+          onComplete();
+        }
+      };
+
       speechSynthesis.speak(utterance);
+    } else {
+      // Fallback if speech synthesis is not available
+      setTimeout(() => {
+        if (onComplete) {
+          onComplete();
+        }
+      }, 2000);
     }
+  }; // Start conversation flow
+  const startConversation = () => {
+    // Go directly to camera state without morphing
+    setState("camera");
   };
 
-  // Start conversation flow
-  const startConversation = () => {
+  // End conversation and start analysis automatically
+  const endConversation = () => {
+    // Move directly to listening state (ball is already visible)
     setState("listening");
 
-    // Simulate listening for 3 seconds
+    // Show "Analyzing conversation..." for 3 seconds
     setTimeout(() => {
       setState("processing");
 
-      // Simulate processing for 2 seconds
+      // Show "Processing facial expression..." for 2 seconds
       setTimeout(() => {
         setState("suggesting");
       }, 2000);
     }, 3000);
   };
 
+  // Return to idle state
+  const returnToIdle = () => {
+    setState("idle");
+    setSelectedSuggestion(null);
+    setIsSpeaking(false);
+    setUserMessage("");
+  };
+
   // Handle suggestion selection
   const selectSuggestion = (suggestion: string) => {
     setSelectedSuggestion(suggestion);
-    speakText(suggestion);
+    setIsSpeaking(true);
 
-    // Return to idle after a short delay
-    setTimeout(() => {
-      setState("idle");
-      setSelectedSuggestion(null);
-    }, 1500);
+    // Speak the text and wait for completion
+    speakText(suggestion, () => {
+      // Audio finished, clear selected suggestion but stay on suggestions page
+      setTimeout(() => {
+        setSelectedSuggestion(null);
+        setIsSpeaking(false);
+      }, 500); // Small delay after audio completes
+    });
   };
 
   // Keyboard navigation
@@ -61,10 +98,12 @@ export default function HomePage() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (state === "idle" && e.key === "Enter") {
         startConversation();
+      } else if (state === "camera" && e.key === "Escape") {
+        endConversation();
       } else if (state === "suggesting") {
-        if (e.key === "1") selectSuggestion(mockSuggestions[0]);
-        if (e.key === "2") selectSuggestion(mockSuggestions[1]);
-        if (e.key === "3") selectSuggestion(mockSuggestions[2]);
+        if (e.key === "1") selectSuggestion(mockSuggestions[0].text);
+        if (e.key === "2") selectSuggestion(mockSuggestions[1].text);
+        if (e.key === "3") selectSuggestion(mockSuggestions[2].text);
       }
     };
 
@@ -72,107 +111,249 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [state]);
   return (
-    <div className="relative w-full">
+    <div
+      className="relative w-full min-h-screen"
+      style={{
+        filter: `brightness(${brightness}%) saturate(${saturation}%)`,
+      }}
+    >
       <CMUFuturisticBackground />
-      <div className="relative z-10">
-        {/* Taller hero area: compact top, a bit more bottom space to extend gradient section */}
-        <section className="relative flex-grow text-center flex items-center justify-center pt-4 pb-20 sm:pb-24">
-          <div className="w-full max-w-screen-xl mx-auto relative z-10 px-4">
+
+      {/* Home Logo Button */}
+      <button
+        onClick={returnToIdle}
+        className="home-logo"
+        aria-label="Return to home"
+      >
+        <img src="/favicon.png" alt="Lumo Logo" />
+      </button>
+
+      {/* Accessibility Panel */}
+      <div className="accessibility-panel">
+        <div className="accessibility-toggle">
+          {/* Brightness Icon */}
+          <svg
+            className="accessibility-icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+          <input
+            type="range"
+            min="50"
+            max="150"
+            value={brightness}
+            onChange={(e) => setBrightness(Number(e.target.value))}
+            className="vertical-slider"
+            aria-label="Brightness control"
+          />
+          <span className="slider-label">Bright</span>
+        </div>
+
+        <div className="accessibility-toggle">
+          {/* Saturation Icon */}
+          <svg
+            className="accessibility-icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+          </svg>
+          <input
+            type="range"
+            min="50"
+            max="150"
+            value={saturation}
+            onChange={(e) => setSaturation(Number(e.target.value))}
+            className="vertical-slider"
+            aria-label="Saturation control"
+          />
+          <span className="slider-label">Color</span>
+        </div>
+      </div>
+
+      <div className="relative z-10 min-h-screen">
+        {/* Hero area with enhanced padding from background */}
+        <section
+          className={`relative flex-grow text-center flex items-center justify-center min-h-screen ${
+            state === "camera" ||
+            state === "listening" ||
+            state === "processing"
+              ? "pt-8 pb-8"
+              : "pt-12 pb-12"
+          }`}
+        >
+          <div className="w-full max-w-screen-xl mx-auto relative z-10 px-6 py-6 md:px-12 md:py-10">
             <div className="animate-fade-in-up">
-              {/* Slightly wider than the container using small negative margins */}
-              <div className="-mx-2 sm:-mx-4 bg-white/40 backdrop-blur-lg rounded-[3rem] p-16 md:p-24 border border-white/50 shadow-2xl">
-                <p className="text-xl md:text-2xl max-w-4xl mx-auto text-white mb-10 leading-relaxed relative">
-                  Multimodal Agentic AI Communication Tool for Nonverbal Users
-                </p>
-                <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6 leading-tight relative text-gray-900">
-                  <span></span>
-                  <span className="block plaid-text-animation mt-2">Lumo</span>
-                </h1>
+              {/* Enhanced margins for more breathing room from background */}
+              <div
+                className={`mx-6 sm:mx-12 md:mx-16 bg-white/40 backdrop-blur-lg rounded-[3rem] border border-white/50 shadow-2xl ${
+                  state === "camera" || state === "listening"
+                    ? "pt-6 px-4 pb-4 md:pt-8 md:px-6 md:pb-6" // More top padding to position ball higher
+                    : state === "processing" || state === "suggesting"
+                    ? "p-8 md:p-12 lg:p-16" // Enhanced spacing for processing and suggesting states
+                    : "p-10 md:p-16 lg:p-20"
+                }`}
+              >
+                {/* LUMO Title - hidden during active states */}
+                {state === "idle" && (
+                  <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-8 leading-tight relative text-gray-900 animate-delayed-fade-in">
+                    <span></span>
+                    <span className="block plaid-text-animation cursive-ligature-animation mt-2">
+                      Lumo
+                    </span>
+                  </h1>
+                )}
+
+                {/* Audio-responsive ball during camera/listening/processing/suggesting/speaking */}
+                {(state === "camera" ||
+                  state === "listening" ||
+                  state === "processing" ||
+                  state === "suggesting" ||
+                  isSpeaking) && (
+                  <div className="animate-ball-fade-in mb-8 flex flex-col items-center justify-center min-h-[120px]">
+                    {/* Text above the ball based on state */}
+                    {state === "camera" && (
+                      <p className="text-white text-xl md:text-2xl font-medium mb-4 animate-fade-in">
+                        Listening...
+                      </p>
+                    )}
+                    {state === "suggesting" && (
+                      <p className="text-white text-xl md:text-2xl font-medium mb-4 animate-fade-in">
+                        Choose your response
+                      </p>
+                    )}
+                    <AudioResponsiveBall
+                      isListening={state === "camera"}
+                      isSpeaking={isSpeaking}
+                      isVisible={true}
+                    />
+                  </div>
+                )}
                 {/* AAC Interface States */}
-                <div className="mt-10">
+                <div
+                  className={`${
+                    state === "camera" || state === "listening"
+                      ? "mt-6" // Enhanced spacing between ball and camera
+                      : state === "processing"
+                      ? "mt-2"
+                      : "mt-8"
+                  }`}
+                >
                   {/* Idle State */}
                   {state === "idle" && (
-                    <div className="flex flex-col sm:flex-row justify-center gap-6">
+                    <div className="text-center animate-extra-slow-fade-in py-4">
                       <Button
                         onClick={startConversation}
                         size="lg"
-                        className="shine-hover rounded-2xl px-10 py-5 text-xl font-semibold border border-white/30 bg-blue-600/60 hover:bg-blue-600/70 text-white backdrop-blur-lg backdrop-saturate-150 shadow-xl transition-all duration-300 hover:shadow-2xl hover:ring-2 hover:ring-blue-300/40 transform hover:scale-105"
+                        className="shine-hover rounded-2xl px-12 py-6 text-xl md:text-2xl font-semibold border border-white/30 bg-blue-600/60 hover:bg-blue-600/70 text-white backdrop-blur-lg backdrop-saturate-150 shadow-xl transition-all duration-300 hover:shadow-2xl hover:ring-2 hover:ring-blue-300/40 transform hover:scale-105"
                       >
                         Start Conversation
                       </Button>
-                      <p className="text-white/80 text-center text-lg sm:self-center">
+                      <p className="text-white/80 mt-6 text-lg md:text-xl">
                         Press Enter or click to begin
                       </p>
                     </div>
                   )}
 
-                  {/* Listening State */}
+                  {/* Camera State */}
+                  {state === "camera" && (
+                    <div className="animate-fade-in">
+                      <ConversationCamera
+                        onEndConversation={endConversation}
+                        userMessage={userMessage}
+                        onMessageChange={setUserMessage}
+                      />
+                    </div>
+                  )}
+
+                  {/* Listening State - Analyzing Conversation */}
                   {state === "listening" && (
-                    <div className="text-center">
-                      <div className="relative w-32 h-32 mx-auto mb-6">
-                        <div className="absolute inset-0 bg-green-500/30 rounded-full animate-ping"></div>
-                        <div className="absolute inset-4 bg-green-500/50 rounded-full animate-pulse"></div>
-                        <div className="absolute inset-8 bg-green-500/70 rounded-full"></div>
+                    <div className="text-center py-6">
+                      <div className="flex justify-center space-x-3 mb-8">
+                        <div className="w-5 h-5 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div
+                          className="w-5 h-5 bg-blue-500 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-5 h-5 bg-blue-500 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
                       </div>
-                      <h2 className="text-3xl font-bold text-white mb-2">
-                        Listening...
+                      <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                        Analyzing Conversation
                       </h2>
-                      <p className="text-white/80 text-lg">
-                        Observing your gestures and expressions
+                      <p className="text-white/80 text-lg md:text-xl max-w-md mx-auto">
+                        Processing your recorded expressions and gestures
                       </p>
                     </div>
                   )}
 
-                  {/* Processing State */}
+                  {/* Processing State - Facial Expression Analysis */}
                   {state === "processing" && (
-                    <div className="text-center">
-                      <div className="flex justify-center space-x-2 mb-6">
-                        <div className="w-4 h-4 bg-yellow-500 rounded-full animate-bounce"></div>
+                    <div className="text-center py-6">
+                      <div className="flex justify-center space-x-3 mb-8">
+                        <div className="w-5 h-5 bg-purple-500 rounded-full animate-bounce"></div>
                         <div
-                          className="w-4 h-4 bg-yellow-500 rounded-full animate-bounce"
+                          className="w-5 h-5 bg-purple-500 rounded-full animate-bounce"
                           style={{ animationDelay: "0.1s" }}
                         ></div>
                         <div
-                          className="w-4 h-4 bg-yellow-500 rounded-full animate-bounce"
+                          className="w-5 h-5 bg-purple-500 rounded-full animate-bounce"
                           style={{ animationDelay: "0.2s" }}
                         ></div>
                       </div>
-                      <h2 className="text-3xl font-bold text-white mb-2">
-                        Processing input...
+                      <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                        Facial Expression
                       </h2>
-                      <p className="text-white/80 text-lg">
-                        AI is analyzing your communication
+                      <p className="text-white/80 text-lg md:text-xl max-w-md mx-auto">
+                        Analyzing facial expressions and micro-gestures
                       </p>
                     </div>
                   )}
 
                   {/* Suggesting State */}
                   {state === "suggesting" && (
-                    <div className="w-full max-w-4xl mx-auto">
-                      <h2 className="text-3xl font-bold text-white mb-8 text-center">
+                    <div className="w-full max-w-5xl mx-auto animate-suggestions-delayed-fade-in py-4">
+                      <h2 className="text-3xl md:text-4xl font-bold text-white mb-10 text-center">
                         What would you like to say?
                       </h2>
-                      <div className="grid md:grid-cols-3 gap-6">
+                      <div className="grid md:grid-cols-3 gap-8 md:gap-10">
                         {mockSuggestions.map((suggestion, index) => (
-                          <div
+                          <button
                             key={index}
-                            className="bg-white/30 backdrop-blur-md rounded-2xl border border-white/40 shadow-lg p-6 hover:bg-white/40 transition-all duration-300 hover:scale-105"
+                            onClick={() => selectSuggestion(suggestion.text)}
+                            className={`suggestion-button-${index + 1} backdrop-blur-md rounded-2xl border shadow-lg p-8 transition-all duration-300 hover:scale-105 animate-suggestion-card-${
+                              index + 1
+                            } cursor-pointer text-left w-full`}
                           >
-                            <p className="text-xl font-semibold text-gray-900 mb-4 min-h-[3rem] flex items-center justify-center text-center">
-                              {suggestion}
-                            </p>
-                            <Button
-                              onClick={() => selectSuggestion(suggestion)}
-                              className="w-full shine-hover rounded-xl px-6 py-3 text-lg font-semibold border border-white/30 bg-green-600/60 hover:bg-green-600/70 text-white backdrop-blur-lg shadow-md transition-all duration-300 hover:shadow-lg transform hover:scale-105"
-                            >
-                              Select ({index + 1})
-                            </Button>
-                          </div>
+                            <div className="min-h-[5rem] flex flex-col items-center justify-center">
+                              <p className="text-xl md:text-2xl font-semibold text-gray-900 mb-2 text-center leading-relaxed">
+                                {suggestion.text}
+                              </p>
+                              <p className="text-sm md:text-base text-white font-medium text-center opacity-80">
+                                {suggestion.tone}
+                              </p>
+                            </div>
+                          </button>
                         ))}
                       </div>
-                      <p className="text-white/80 mt-6 text-center text-lg">
-                        Press number keys 1-3 or click to select
-                      </p>
+
+                      {/* Restart Conversation Button */}
+                      <div className="mt-12 text-center">
+                        <Button
+                          onClick={startConversation}
+                          size="lg"
+                          className="shine-hover rounded-2xl px-12 py-6 text-xl md:text-2xl font-semibold border border-white/30 bg-blue-600/60 hover:bg-blue-600/70 text-white backdrop-blur-lg backdrop-saturate-150 shadow-xl transition-all duration-300 hover:shadow-2xl hover:ring-2 hover:ring-blue-300/40 transform hover:scale-105"
+                        >
+                          Restart Conversation
+                        </Button>
+                      </div>
                     </div>
                   )}
 
