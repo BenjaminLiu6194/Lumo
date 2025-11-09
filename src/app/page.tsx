@@ -9,10 +9,11 @@ import { AudioResponsiveBall } from "@/components/AudioResponsiveBall";
 
 type AppState = "idle" | "camera" | "listening" | "processing" | "suggesting";
 
+// Nut allergy communication suggestions
 const mockSuggestions = [
-  { text: "I want an apple", tone: "Direct request" },
-  { text: "Where can I get apple?", tone: "Curious question" },
-  { text: "I love apple", tone: "Happy expression" },
+  { text: "I have a severe nut allergy", tone: "Important safety alert" },
+  { text: "Which dishes contain nuts or nut oils?", tone: "Safety inquiry" },
+  { text: "Can this be prepared without any nuts?", tone: "Accommodation request" },
 ];
 
 export default function HomePage() {
@@ -328,7 +329,9 @@ export default function HomePage() {
                           <button
                             key={index}
                             onClick={() => selectSuggestion(suggestion.text)}
-                            className={`suggestion-button-${index + 1} backdrop-blur-md rounded-2xl border shadow-lg p-8 transition-all duration-300 hover:scale-105 animate-suggestion-card-${
+                            className={`suggestion-button-${
+                              index + 1
+                            } backdrop-blur-md rounded-2xl border shadow-lg p-8 transition-all duration-300 hover:scale-105 animate-suggestion-card-${
                               index + 1
                             } cursor-pointer text-left w-full`}
                           >
